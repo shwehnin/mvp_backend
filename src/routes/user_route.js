@@ -1,0 +1,16 @@
+const router = require("express").Router();
+const controller = require("../controllers/user_account_controller");
+const userValidator = require("../validation/schema/user");
+const {
+    validateMongoId,
+    validateToken,
+    validateRole,
+    validateBody,
+} = require("../validation/validator");
+
+router.post("/register", [
+    validateBody(userValidator.register),
+    controller.register,
+]);
+
+module.exports = router;
