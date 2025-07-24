@@ -6,45 +6,156 @@ const emailSender = require("../utils/email");
 const register = async (req, res, next) => {
     try {
         const { name, email, phone, address, password } = req.body;
-        // Check if user exists
-        if (phone && password || email && password) {
-            req.body.password = encodePass(password);
-            var phoneInUse = await db.findOne({ phone });
-            if (phoneInUse) {
-                throwError({ message: "Phone is already in use" });
-              }
-            var emailInUse = await db.findOne({ email });
-            if (emailInUse) throwError({ message: "Email is already in use" });
+
+        // Validate inputs
+        if ((!phone && !email) || !password) {
+            throwError({ message: "Email or phone and password are required", status: 400 });
         }
+
+        // Check duplicates only if respective fields are provided
+        if (phone) {
+            const phoneInUse = await db.findOne({ phone });
+            if (phoneInUse) throwError({ message: "Phone is already in use", status: 409 });
+        }
+
+        if (email) {
+            const emailInUse = await db.findOne({ email });
+            if (emailInUse) throwError({ message: "Email is already in use", status: 409 });
+        }
+
+        // Hash password
+        const hashedPassword = encodePass(password);
 
         // Create user
         const user = new db({
-            name, email, phone, address, password,
+            name,
+            email,
+            phone,
+            address,
+            password: hashedPassword,
         });
 
-        // Generate Otp
+        // Generate OTP
         const { otp, otpExpires } = generateOTP();
-        user.otp = otp;
+        user.otpCode = otp;
         user.otpExpires = otpExpires;
+
         await user.save();
-        const createdData = await db.findById(user._id);
-        const response = await emailSender.sendMail(
-            email,
-            "Verify Your Account",
-            `Your OTP code is: ${otp}`
-        );
 
-        let userObj = createdData.toObject();
+        // Send OTP email if email is provided
+        if (email) {
+            await emailSender.sendMail(
+                email,
+                "Verify Your Account",
+                `Your OTP code is: ${otp}`
+            );
+        }
+
+        // Prepare user object for response
+        const userObj = user.toObject();
         delete userObj.password;
-        success(res, { message: "User registered successfully. Please verify your email.", data: userObj });
+
+        success(res, {
+            message: "User registered successfully. Please verify your account.",
+            data: userObj,
+        });
 
     } catch (err) {
         next(err);
     }
 }
 
-const login = (req, res, next) => {
+
+const verifyOtp = async (req, res, next) => {
     try {
+        const { userId, otp } = req.body;
+
+        const user = await db.findById(userId);
+        if (!user) throwError({ message: "User not found!", status: 404 });
+
+        if (
+            user.otpCode !== otp ||
+            !user.otpExpires ||
+            user.otpExpires.getTime() < Date.now()
+        ) {
+            throwError({ message: 'Invalid or expired OTP', status: 400 });
+        }
+
+        // ✅ Log before clearing
+        console.log('=== OTP VERIFICATION DEBUG ===');
+        console.log('Input userId:', userId);
+        console.log('Input otp:', otp);
+        console.log('User in DB:', {
+            id: user._id,
+            otpCode: user.otpCode,
+            otpExpires: user.otpExpires,
+            isExpired: user.otpExpires?.getTime() < Date.now(),
+        });
+
+
+        user.isVerified = true;
+        user.otpCode = undefined;
+        user.otpExpires = undefined;
+        await user.save();
+
+        const userObj = user.toObject();
+        delete userObj.password;
+
+        const token = makeToken(userObj);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Account verified successfully',
+            data: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                address: user.address,
+                token: token,
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const login = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            throwError({ message: "invalid request data" });
+        }
+
+        const user = await db.findOne({ email });
+        if (!user) {
+            throwError({ message: 'Invalid credentials' });
+        }
+
+        if (!user.isVerified) {
+            throwError({ message: 'Please verify your account first' });
+        }
+
+        if (user) {
+            if (comparePass(password, user.password)) {
+                let userObj = user.toObject();
+                delete userObj.password;
+                let token = makeToken(userObj);
+
+                success(res, {
+                    message: "Login success",
+                    data: {
+                        user: userObj,
+                        token: token,
+                    },
+                });
+            } else {
+                throwError({ message: "invalid credentials" });
+            }
+        } else {
+            throwError({ message: "invalid credentials" });
+        }
 
     } catch (err) {
         next(err);
@@ -52,4 +163,4 @@ const login = (req, res, next) => {
 
 }
 
-module.exports = { register, login };
+module.exports = { register, verifyOtp, login };

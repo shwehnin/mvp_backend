@@ -13,4 +13,7 @@ router.post("/register", [
     controller.register,
 ]);
 
+router.post("/login", [validateBody(userValidator.login), controller.login]);
+router.post("/verify-otp", [validateBody(userValidator.verify), controller.verifyOtp]);
+
 module.exports = router;

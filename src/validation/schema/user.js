@@ -9,3 +9,13 @@ exports.register = Joi.object({
         block: Joi.string().required(),
     }).required(),
 }).options({ allowUnknown: true });
+
+exports.login = Joi.object({
+    email: Joi.string().required(),
+    password: Joi.string().required(),
+}).options({ allowUnknown: true });
+
+exports.verify = Joi.object({
+    userId: Joi.string().required(),
+    otp: Joi.string().required(),
+})
