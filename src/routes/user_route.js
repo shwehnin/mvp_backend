@@ -15,5 +15,9 @@ router.post("/register", [
 
 router.post("/login", [validateBody(userValidator.login), controller.login]);
 router.post("/verify-otp", [validateBody(userValidator.verify), controller.verifyOtp]);
+router.get("/user", [validateToken, controller.user]);
+router.post('/forgot-password', [controller.forgotPassword]);
+router.post('/verify-reset-password', [controller.verifyResetOtp]);
+router.post('/reset-password', [controller.resetPassword]);
 
 module.exports = router;

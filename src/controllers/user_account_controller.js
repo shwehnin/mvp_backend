@@ -160,7 +160,106 @@ const login = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
-
 }
 
-module.exports = { register, verifyOtp, login };
+const user = async (req, res, next) => {
+    try {
+        const user = await db.findById(req.user._id).select(" -__v");
+        if (!user) throwError({ message: "request id not found" });
+
+        let userObj = user.toObject();
+        delete userObj.password;
+
+        success(res, { message: "profile data", data: userObj });
+    } catch (err) {
+        next(err);
+    }
+}
+
+const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) throwError({ message: "Email is required", status: 400 });
+
+        const user = await db.findOne({ email });
+        if (!user) throwError({ message: "User not found", status: 404 });
+
+        const { otp, otpExpires } = generateOTP();
+        user.resetPasswordOtp = otp;
+        user.resetPasswordExpires = otpExpires;
+        await user.save();
+
+        await emailSender.sendMail(
+            email,
+            "Password Reset Request",
+            `Your OTP code to reset your password is: ${otp}`
+        );
+
+        success(res, {
+            message: "OTP sent to your email",
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const verifyResetOtp = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) throwError({ message: "Email and OTP are required", status: 400 });
+
+        const user = await db.findOne({ email });
+        if (!user) throwError({ message: "User not found", status: 404 });
+
+        if (
+            user.resetPasswordOtp !== otp ||
+            !user.resetPasswordExpires ||
+            user.resetPasswordExpires.getTime() < Date.now()
+        ) {
+            throwError({ message: "Invalid or expired OTP", status: 400 });
+        }
+
+        success(res, {
+            message: "OTP verified. You can now reset your password.",
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+const resetPassword = async (req, res, next) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) {
+            throwError({ message: "Email, OTP, and new password are required", status: 400 });
+        }
+
+        const user = await db.findOne({ email });
+        if (!user) throwError({ message: "User not found", status: 404 });
+
+        if (
+            user.resetPasswordOtp !== otp ||
+            !user.resetPasswordExpires ||
+            user.resetPasswordExpires.getTime() < Date.now()
+        ) {
+            throwError({ message: "Invalid or expired OTP", status: 400 });
+        }
+
+        user.password = encodePass(newPassword);
+        user.resetPasswordOtp = undefined;
+        user.resetPasswordExpires = undefined;
+
+        await user.save();
+
+        success(res, {
+            message: "Password reset successful. You can now log in with your new password.",
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { register, verifyOtp, login, user, forgotPassword, verifyResetOtp, resetPassword };

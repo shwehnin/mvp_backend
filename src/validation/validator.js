@@ -1,6 +1,7 @@
 const ObjectId = require("mongoose").Types.ObjectId;
 const helper = require("../utils/helper");
 const jwt = require("jsonwebtoken");
+const User = require("../models/user_model");
 
 ///schema is Joi Object Schema
 exports.validateBody = (schema) => (req, res, next) => {
@@ -26,24 +27,42 @@ exports.validateQuery = (queryName) => (req, res, next) => {
   }
   next();
 };
-exports.validateToken = (req, res, next) => {
-  let authorization = req.headers.authorization;
-  if (!authorization) {
-    return next(createError("Tokenization Error", 401));
-  }
-  let token = authorization.split(" ")[1];
-  if (token) {
-    //token expiration check
-    jwt.verify(token, process.env.JWT_SECRET_KEY, function (err, decoded) {
+exports.validateToken = async (req, res, next) => {
+  try {
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+      return next(createError(401, "Token is missing"));
+    }
+
+    const token = authorization.split(" ")[1];
+    if (!token) {
+      return next(createError(401, "Token is missing"));
+    }
+
+    // Verify token
+    jwt.verify(token, process.env.JWT_SECRET_KEY, async (err, decoded) => {
       if (err) {
-        next(createError("access_token_expired", 498));
-      } else {
-        req.user = decoded.data;
-        return next();
+        return next(createError(498, "Access token expired or invalid"));
       }
+
+      // Get user from token payload (e.g. decoded.id or decoded.data.id)
+      const userId = decoded?.data?._id || decoded?.id;
+
+      if (!userId) {
+        return next(createError(401, "Invalid token payload"));
+      }
+
+      const user = await User.findById(userId);
+      if (!user || !user.isVerified) {
+        return res.status(401).json({ error: "User not found or not verified" });
+      }
+
+      // Attach user to request
+      req.user = user;
+      next();
     });
-  } else {
-    next(createError("Tokenization Error", 401));
+  } catch (err) {
+    next(createError(500, "Internal server error"));
   }
 };
 

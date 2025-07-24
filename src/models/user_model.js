@@ -34,7 +34,7 @@ const UserSchema = new Schema({
         default: false
     },
     verificationToken: String,
-    resetPasswordToken: String,
+    resetPasswordOtp: String,
     resetPasswordExpires: Date,
     otpCode: String,
     otpExpires: Date,
