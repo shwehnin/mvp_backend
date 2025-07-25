@@ -1,4 +1,6 @@
 const db = require("../models/user_model");
+const HDBData = require("../models/hdb_model");
+const groupByDB = require("../models/group_buy_model");
 const { skipCount, limitCount, encodePass, comparePass, makeToken, generateOTP } = require("../utils/helper");
 const { success, throwError } = require("../utils/response");
 const emailSender = require("../utils/email");
@@ -10,6 +12,17 @@ const register = async (req, res, next) => {
         // Validate inputs
         if ((!phone && !email) || !password) {
             throwError({ message: "Email or phone and password are required", status: 400 });
+        }
+
+        // Validate HDB address
+        const hdbData = await HDBData.findOne({ town: address.town });
+        if (!hdbData) {
+            return res.status(400).json({ error: 'Invalid HDB town' });
+        }
+
+        const estateData = hdbData.estates.find(e => e.name === address.estate);
+        if (!estateData || !estateData.blocks.includes(address.block)) {
+            return res.status(400).json({ error: 'Invalid HDB address' });
         }
 
         // Check duplicates only if respective fields are provided
@@ -262,4 +275,67 @@ const resetPassword = async (req, res, next) => {
     }
 };
 
-module.exports = { register, verifyOtp, login, user, forgotPassword, verifyResetOtp, resetPassword };
+// update profile
+const updateUser = async (req, res, next) => {
+    try {
+        const { name, phone, address } = req.body;
+        const userId = req.user.userId;
+
+        // Validate HDB address if provided
+        if (address) {
+            const hdbData = await HDBData.findOne({ town: address.town });
+            if (!hdbData) {
+                throwError({ message: 'Invalid HDB town' });
+            }
+
+            const estateData = hdbData.estates.find(e => e.name === address.estate);
+            if (!estateData || !estateData.blocks.includes(address.block)) {
+                throwError({ message: 'Invalid HDB address' });
+            }
+        }
+
+        const updatedUser = await db.findByIdAndUpdate(
+            userId,
+            {
+                name,
+                phone,
+                address,
+                updatedAt: new Date()
+            },
+            { new: true, runValidators: true }
+        ).select('-password -otp -resetOtp');
+
+        success(res, { message: "Profile updated successfully!", data: updatedUser });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Get user's group buy history
+const history = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        // Get group buys user is participating in
+        const participatingIn = await groupByDB.find({
+            'participants.user': userId
+        }).populate('organizer', 'name email');
+
+        // Get group buys user organized
+        const organized = await groupByDB.find({
+            organizer: userId
+        });
+
+        success(res, {
+            message: "Group buy user history",
+            data: {
+                participating: participatingIn,
+                organized
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { register, verifyOtp, login, user, forgotPassword, verifyResetOtp, resetPassword, updateUser, history };

@@ -8,10 +8,10 @@ const encodePass = (password) => bcrypt.hashSync(password, 10);
 const comparePass = (password, hashPassword) => bcrypt.compareSync(password, hashPassword);
 
 // Generate OTP
-const generateOTP = function() {
+const generateOTP = function () {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    return {otp, otpExpires};
+    return { otp, otpExpires };
 }
 
 
@@ -51,6 +51,13 @@ const createFlexibleRegex = (searchTerm) => {
     return new RegExp(pattern, "i");
 };
 
+const requireAdmin = (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
+
 module.exports = {
     encodePass,
     comparePass,
@@ -61,4 +68,5 @@ module.exports = {
     sort,
     createFlexibleRegex,
     generateOTP,
+    requireAdmin,
 }
