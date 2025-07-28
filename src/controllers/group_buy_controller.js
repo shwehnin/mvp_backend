@@ -33,9 +33,10 @@ const create = async (req, res, next) => {
 const get = async (req, res, next) => {
     try {
         const user = await dbUser.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+        console.log("User Id " + user)
+            ; if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
 
         const { town, estate, block } = user.address;
 
@@ -45,7 +46,8 @@ const get = async (req, res, next) => {
             $or: [
                 { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': block },
                 { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': { $exists: false } },
-                { 'targetBlocks.town': town, 'targetBlocks.estate': { $exists: false } }
+                { 'targetBlocks.town': town, 'targetBlocks.estate': { $exists: false } },
+                { organizer: user._id },
             ]
         }).populate('organizer', 'name email');
 

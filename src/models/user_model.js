@@ -23,10 +23,6 @@ const UserSchema = new Schema({
         block: {
             type: String,
             required: true
-        },
-        unit: {
-            type: String,
-            required: false
         }
     },
     isVerified: {

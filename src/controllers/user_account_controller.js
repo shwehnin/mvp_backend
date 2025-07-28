@@ -14,6 +14,10 @@ const register = async (req, res, next) => {
             throwError({ message: "Email or phone and password are required", status: 400 });
         }
 
+        if (!address || !address.town || !address.estate || !address.block) {
+            throwError({ message: "Complete address(town, estate, block) is required", status: 400 });
+        }
+
         // Validate HDB address
         const hdbData = await HDBData.findOne({ town: address.town });
         if (!hdbData) {
@@ -278,8 +282,8 @@ const resetPassword = async (req, res, next) => {
 // update profile
 const updateUser = async (req, res, next) => {
     try {
-        const { name, phone, address } = req.body;
-        const userId = req.user.userId;
+        const { name, email, address } = req.body;
+        const userId = req.user.id;
 
         // Validate HDB address if provided
         if (address) {
@@ -298,14 +302,17 @@ const updateUser = async (req, res, next) => {
             userId,
             {
                 name,
-                phone,
+                email,
                 address,
                 updatedAt: new Date()
             },
             { new: true, runValidators: true }
         ).select('-password -otp -resetOtp');
 
-        success(res, { message: "Profile updated successfully!", data: updatedUser });
+        success(res, {
+            message: "Profile updated successfully!",
+            data: updatedUser
+        });
     } catch (error) {
         next(error);
     }
