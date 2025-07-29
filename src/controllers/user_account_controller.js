@@ -7,7 +7,7 @@ const emailSender = require("../utils/email");
 
 const register = async (req, res, next) => {
     try {
-        const { name, email, phone, address, password } = req.body;
+        const { name, email, phone, address, password, role } = req.body;
 
         // Validate inputs
         if ((!phone && !email) || !password) {
@@ -50,6 +50,7 @@ const register = async (req, res, next) => {
             phone,
             address,
             password: hashedPassword,
+            role,
         });
 
         // Generate OTP
