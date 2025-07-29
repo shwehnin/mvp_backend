@@ -4,6 +4,7 @@
   "description": "Group Buy App API for HDB residents",
   "main": "server.js",
   "scripts": {
+    "start": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hnin Hnin Wai",
@@ -19,6 +20,7 @@
     "helmet": "^8.1.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.18.0",
     "mongoose": "^8.16.4",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
