@@ -53,8 +53,8 @@ exports.validateToken = async (req, res, next) => {
       }
 
       const user = await User.findById(userId);
-      if (!user || !user.isVerified) {
-        return res.status(401).json({ error: "User not found or not verified" });
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
       }
 
       // Attach user to request
