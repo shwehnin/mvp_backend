@@ -25,10 +25,10 @@ const UserSchema = new Schema({
             required: true
         }
     },
-    isVerified: {
-        type: Boolean,
-        default: false
-    },
+    // isVerified: {
+    //     type: Boolean,
+    //     default: false
+    // },
     verificationToken: String,
     resetPasswordOtp: String,
     resetPasswordExpires: Date,
