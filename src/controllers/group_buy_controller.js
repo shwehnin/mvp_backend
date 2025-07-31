@@ -33,29 +33,33 @@ const create = async (req, res, next) => {
 const get = async (req, res, next) => {
     try {
         const user = await dbUser.findById(req.user.id);
-        console.log("User Id " + user)
-            ; if (!user) {
-                return res.status(404).json({ error: 'User not found' });
-            }
+        if (!user) return res.status(404).json({ error: 'User not found' });
 
         const { town, estate, block } = user.address;
 
-        const groupBuys = await db.find({
-            status: 'active',
-            endDate: { $gt: new Date() },
-            $or: [
-                { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': block },
-                { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': { $exists: false } },
-                { 'targetBlocks.town': town, 'targetBlocks.estate': { $exists: false } },
-                { organizer: user._id },
-            ]
-        }).populate('organizer', 'name email');
+        let query;
+
+        if (user.role === 'organizer') {
+            query = { organizer: user._id };
+        } else {
+            query = {
+                status: 'active',
+                endDate: { $gt: new Date() },
+                $or: [
+                    { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': block },
+                    { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': { $exists: false } },
+                    { 'targetBlocks.town': town, 'targetBlocks.estate': { $exists: false } },
+                ]
+            };
+        }
+
+        const groupBuys = await db.find(query).populate('organizer', 'name email');
 
         success(res, { message: "Group buys", data: groupBuys });
     } catch (error) {
         next(error);
     }
-}
+};
 
 // Get specific group buy
 const details = async (req, res, next) => {

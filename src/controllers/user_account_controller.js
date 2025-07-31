@@ -19,7 +19,7 @@ const register = async (req, res, next) => {
         }
 
         // Validate HDB address
-        const hdbData = await HDBData.findOne({ town: address.town });
+        const hdbData = await HDBData.findOne({ town: new RegExp(`^${address.town}$`, 'i') });
         if (!hdbData) {
             return res.status(400).json({ error: 'Invalid HDB town' });
         }
@@ -43,25 +43,36 @@ const register = async (req, res, next) => {
         // Hash password
         const hashedPassword = encodePass(password);
 
-        // Create user
-        const user = new db({
-            name,
-            email,
-            phone,
-            address,
-            password: hashedPassword,
-            role,
-        });
-
         // Generate OTP
         const { otp, otpExpires } = generateOTP();
-        user.otpCode = otp;
-        user.otpExpires = otpExpires;
+        let user = await db.findOne({ $or: [{ email }, { phone }] });
+        if (user) {
+            if (user.isVerified) {
+                throwError({ message: "User already exists and is verified", status: 409 });
+            }
+            // Resend OTP to unverified user
+            user.otpCode = otp;
+            user.otpExpires = otpExpires;
+            user.password = encodePass(password);
+            user.address = address;
+        } else {
+            // Create user
+            user = new db({
+                name,
+                email,
+                phone,
+                address,
+                password: hashedPassword,
+                role,
+                otpCode: otp,
+                otpExpires,
+            });
+        }
 
         await user.save();
 
         // Send OTP email if email is provided
-        if (email) {
+        if (email || phone) {
             await emailSender.sendMail(
                 email,
                 "Verify Your Account",
@@ -83,12 +94,11 @@ const register = async (req, res, next) => {
     }
 }
 
-
 const verifyOtp = async (req, res, next) => {
     try {
-        const { userId, otp } = req.body;
+        const { email, phone, otp } = req.body;
 
-        const user = await db.findById(userId);
+        const user = await db.findOne({ $or: [{ email }, { phone }] });
         if (!user) throwError({ message: "User not found!", status: 404 });
 
         if (
@@ -99,18 +109,6 @@ const verifyOtp = async (req, res, next) => {
             throwError({ message: 'Invalid or expired OTP', status: 400 });
         }
 
-        // ✅ Log before clearing
-        console.log('=== OTP VERIFICATION DEBUG ===');
-        console.log('Input userId:', userId);
-        console.log('Input otp:', otp);
-        console.log('User in DB:', {
-            id: user._id,
-            otpCode: user.otpCode,
-            otpExpires: user.otpExpires,
-            isExpired: user.otpExpires?.getTime() < Date.now(),
-        });
-
-
         user.isVerified = true;
         user.otpCode = undefined;
         user.otpExpires = undefined;
@@ -118,8 +116,6 @@ const verifyOtp = async (req, res, next) => {
 
         const userObj = user.toObject();
         delete userObj.password;
-
-        const token = makeToken(userObj);
 
         return res.status(200).json({
             success: true,
@@ -130,7 +126,6 @@ const verifyOtp = async (req, res, next) => {
                 name: user.name,
                 role: user.role,
                 address: user.address,
-                token: token,
             }
         });
     } catch (error) {
@@ -140,13 +135,13 @@ const verifyOtp = async (req, res, next) => {
 
 const login = async (req, res, next) => {
     try {
-        const { email, password } = req.body;
+        const { email, phone, password } = req.body;
 
-        if (!email || !password) {
-            throwError({ message: "invalid request data" });
+        if ((!email && !phone) || !password) {
+            throwError({ message: "Email or phone and password are required", status: 400 });
         }
 
-        const user = await db.findOne({ email });
+        const user = await db.findOne({ $or: [{ email }, { phone }] });
         if (!user) {
             throwError({ message: 'Invalid credentials' });
         }
@@ -196,11 +191,11 @@ const user = async (req, res, next) => {
 
 const forgotPassword = async (req, res, next) => {
     try {
-        const { email } = req.body;
+        const { email, phone } = req.body;
 
-        if (!email) throwError({ message: "Email is required", status: 400 });
+        if (!email || !phone) throwError({ message: "Email/Phone is required", status: 400 });
 
-        const user = await db.findOne({ email });
+        const user = await db.findOne({ $or: [{ email }, { phone }] });
         if (!user) throwError({ message: "User not found", status: 404 });
 
         const { otp, otpExpires } = generateOTP();
@@ -215,32 +210,7 @@ const forgotPassword = async (req, res, next) => {
         );
 
         success(res, {
-            message: "OTP sent to your email",
-        });
-    } catch (err) {
-        next(err);
-    }
-};
-
-const verifyResetOtp = async (req, res, next) => {
-    try {
-        const { email, otp } = req.body;
-
-        if (!email || !otp) throwError({ message: "Email and OTP are required", status: 400 });
-
-        const user = await db.findOne({ email });
-        if (!user) throwError({ message: "User not found", status: 404 });
-
-        if (
-            user.resetPasswordOtp !== otp ||
-            !user.resetPasswordExpires ||
-            user.resetPasswordExpires.getTime() < Date.now()
-        ) {
-            throwError({ message: "Invalid or expired OTP", status: 400 });
-        }
-
-        success(res, {
-            message: "OTP verified. You can now reset your password.",
+            message: "OTP sent to your email or phone",
         });
     } catch (err) {
         next(err);
@@ -249,13 +219,13 @@ const verifyResetOtp = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
     try {
-        const { email, otp, newPassword } = req.body;
+        const { email, phone, otp, newPassword } = req.body;
 
-        if (!email || !otp || !newPassword) {
-            throwError({ message: "Email, OTP, and new password are required", status: 400 });
+        if (!email || !phone || !otp || !newPassword) {
+            throwError({ message: "Email/Phone, OTP, and new password are required", status: 400 });
         }
 
-        const user = await db.findOne({ email });
+        const user = await db.findOne({ $or: [{ email }, { phone }] });
         if (!user) throwError({ message: "User not found", status: 404 });
 
         if (
@@ -283,7 +253,7 @@ const resetPassword = async (req, res, next) => {
 // update profile
 const updateUser = async (req, res, next) => {
     try {
-        const { name, email, address } = req.body;
+        const { name, email, phone, address } = req.body;
         const userId = req.user.id;
 
         // Validate HDB address if provided
@@ -304,6 +274,7 @@ const updateUser = async (req, res, next) => {
             {
                 name,
                 email,
+                phone,
                 address,
                 updatedAt: new Date()
             },
@@ -346,4 +317,4 @@ const history = async (req, res, next) => {
     }
 }
 
-module.exports = { register, verifyOtp, login, user, forgotPassword, verifyResetOtp, resetPassword, updateUser, history };
+module.exports = { register, verifyOtp, login, user, forgotPassword, resetPassword, updateUser, history };

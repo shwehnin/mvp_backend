@@ -1,7 +1,6 @@
 const Joi = require("joi");
 exports.register = Joi.object({
     name: Joi.string().min(3).max(30).required(),
-    email: Joi.string().required(),
     password: Joi.string().required(),
     address: Joi.object({
         town: Joi.string().required(),
@@ -11,11 +10,10 @@ exports.register = Joi.object({
 }).options({ allowUnknown: true });
 
 exports.login = Joi.object({
-    email: Joi.string().required(),
     password: Joi.string().required(),
 }).options({ allowUnknown: true });
 
 exports.verify = Joi.object({
-    userId: Joi.string().required(),
+    email: Joi.string().required(),
     otp: Joi.string().required(),
 })
