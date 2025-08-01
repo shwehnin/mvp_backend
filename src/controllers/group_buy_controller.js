@@ -35,21 +35,25 @@ const get = async (req, res, next) => {
         const user = await dbUser.findById(req.user.id);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        const { town, estate, block } = user.address;
+        const { town, estate, block } = user.address || {};
+
+        if (!town || !estate || !block) {
+            throwError({ message: "Incomplete address in user profile", status: 400 });
+        }
 
         let query;
 
         if (user.role === 'organizer') {
+            // Organizer sees their own group buys
             query = { organizer: user._id };
         } else {
+            // Participant sees group buys targeting their exact block
             query = {
                 status: 'active',
                 endDate: { $gt: new Date() },
-                $or: [
-                    { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': block },
-                    { 'targetBlocks.town': town, 'targetBlocks.estate': estate, 'targetBlocks.block': { $exists: false } },
-                    { 'targetBlocks.town': town, 'targetBlocks.estate': { $exists: false } },
-                ]
+                'targetBlocks.town': town,
+                'targetBlocks.estate': estate,
+                'targetBlocks.block': block,
             };
         }
 

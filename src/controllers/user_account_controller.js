@@ -146,9 +146,9 @@ const login = async (req, res, next) => {
             throwError({ message: 'Invalid credentials' });
         }
 
-        // if (!user.isVerified) {
-        //     throwError({ message: 'Please verify your account first' });
-        // }
+        if (!user.isVerified) {
+            throwError({ message: 'Please verify your account first' });
+        }
 
         if (user) {
             if (comparePass(password, user.password)) {
