@@ -33,7 +33,7 @@ const create = async (req, res, next) => {
 const get = async (req, res, next) => {
     try {
         const user = await dbUser.findById(req.user.id);
-        console.log("User "+user);
+        console.log("User " + user);
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const { town, estate, block } = user.address || {};
@@ -52,17 +52,13 @@ const get = async (req, res, next) => {
             query = {
                 status: 'active',
                 endDate: { $gt: new Date() },
-                'targetBlocks.town': "Jurong West",
-                'targetBlocks.estate': "Jurong Spring",
-                'targetBlocks.block': "301A",
+                'targetBlocks.town': town,
+                'targetBlocks.estate': estate,
+                'targetBlocks.block': block,
             };
         }
 
-        console.log('User:', user);
-        console.log('Query:', query);
-
         const groupBuys = await db.find(query).populate('organizer', 'name email');
-        console.log('GroupBuys:', groupBuys);
 
         success(res, { message: "Group buys", data: groupBuys });
     } catch (error) {
