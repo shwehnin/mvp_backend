@@ -52,9 +52,18 @@ const get = async (req, res, next) => {
             query = {
                 status: 'active',
                 endDate: { $gt: new Date() },
-                'targetBlocks.town': town,
-                'targetBlocks.estate': estate,
-                'targetBlocks.block': block,
+                $or: [
+                    {
+                        'targetBlocks.town': town,
+                        'targetBlocks.estate': estate,
+                        'targetBlocks.block': block
+                    },
+                    {
+                        'targetBlocks.town': town,
+                        'targetBlocks.estate': estate,
+                        'targetBlocks.block': { $exists: false }
+                    }
+                ]
             };
         }
 
