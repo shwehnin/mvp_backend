@@ -66,7 +66,6 @@ const get = async (req, res, next) => {
                     {
                         'targetBlocks.town': town,
                         'targetBlocks.estate': estate,
-                        'targetBlocks.block': { $exists: false }
                     }
                 ]
             };
