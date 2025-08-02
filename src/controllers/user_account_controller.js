@@ -307,7 +307,7 @@ const history = async (req, res, next) => {
                 description: gb.description,
                 organizer: gb.organizer,
                 targetQuantity: gb.targetQuantity,
-                currentQuantity: participant.currentQuantity,
+                currentQuantity: participant.currentQuantity || gb.currentQuantity,
                 joinedAt: participant.joinedAt || gb.updatedAt,
                 endDate: gb.endDate,
                 status: gb.status
