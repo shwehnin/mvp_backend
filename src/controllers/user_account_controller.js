@@ -301,12 +301,13 @@ const history = async (req, res, next) => {
         const history = groupBuys.map(gb => {
             const participant = gb.participants.find(p => p.user.toString() === userId);
             return {
-                _id: gb.id,
+                _id: gb._id,
                 title: gb.title,
                 product: gb.product,
                 description: gb.description,
                 organizer: gb.organizer,
-                joinedQuantity: participant.quantity,
+                targetQuantity: gb.targetQuantity,
+                joinedQuantity: participant.currentQuantity,
                 joinedAt: participant.joinedAt || gb.updatedAt,
                 endDate: gb.endDate,
                 status: gb.status
