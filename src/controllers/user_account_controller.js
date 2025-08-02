@@ -230,12 +230,12 @@ const verifyResetOtp = async (req, res, next) => {
         console.log(`Date now ${Date.now()}`);
         console.log(`Password Expires ${user.resetPasswordExpires}`);
         if (
-            user.resetPasswordOtp !== +otp ||
+            String(user.resetPasswordOtp) !== String(otp) ||
             Date.now() > user.resetPasswordExpires
-        ) {
+          ) {
             return res.status(401).json({ message: "Invalid or expired OTP" });
-        }
-        user.resetPasswordOtp = 1;
+          }
+        user.resetPasswordOtp = undefined;
         user.resetPasswordExpires = undefined;
         await user.save();
         return res.json({ message: "OTP confirmed successfully" });
