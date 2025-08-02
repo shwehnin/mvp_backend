@@ -10,11 +10,9 @@ const create = async (req, res, next) => {
 
         // Validate that user is organizer only can create
         const user = await dbUser.findById(req.user.id);
-        console.log("user role" + user);
-        console.log(user);
         if (!user || user.role !== 'organizer') {
             return res.status(403).json({ error: 'Only organizers can create group buys' });
-          }
+        }
 
         const groupBuy = new db({
             title,
@@ -123,7 +121,7 @@ const join = async (req, res, next) => {
             throwError({ message: 'Would exceed target quantity' });
         }
 
-        groupBuy.participants.push({ user: userId, quantity });
+        groupBuy.participants.push({ user: userId, quantity, joinedAt: new Date() });
         groupBuy.currentQuantity += quantity;
         groupBuy.updatedAt = new Date();
 
@@ -164,4 +162,31 @@ const leave = async (req, res, next) => {
     }
 }
 
-module.exports = { create, get, details, join, leave }
+// Get join history for current user
+const joinHistory = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        // Find group buys where user is in the participants list
+        const groupBuys = await db.find({ 'participants.user': userId }).populate('organizer', 'name email').lean();
+        // Filter participant data for this user only
+        const history = groupBuys.map(gb => {
+            const participant = gb.participants.find(p => p.user.toString() === userId);
+            return {
+                _id: gb.id,
+                title: gb.title,
+                product: gb.product,
+                description: gb.description,
+                organizer: gb.organizer,
+                joinedQuantity: participant.quantity,
+                joinedAt: participant.joinedAt || gb.updatedAt,
+                endDate: gb.endDate,
+                status: gb.status
+            }
+        });
+        success(res, { message: "View Order History", data: history });
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { create, get, details, join, leave, joinHistory }
