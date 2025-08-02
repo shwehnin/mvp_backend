@@ -20,5 +20,6 @@ router.post('/forgot-password', [controller.forgotPassword]);
 router.post('/reset-password', [controller.resetPassword]);
 router.get("/groups-buy/history", [validateToken, controller.history]);
 router.put("/update", [validateToken, controller.updateUser]);
+router.post("/verify-reset-otp", controller.verifyResetOtp);
 
 module.exports = router;

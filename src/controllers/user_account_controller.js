@@ -210,26 +210,54 @@ const forgotPassword = async (req, res, next) => {
         );
 
         success(res, {
-            message: "OTP sent to your email or phone",
+            message: "OTP sent to your email.",
         });
     } catch (err) {
         next(err);
     }
 };
 
+const verifyResetOtp = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+        const user = await db.findOne({ email });
+        console.log(`User forgot ${user}`);
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+        console.log(`User otp ${user.resetPasswordOtp}`);
+        console.log(`forgot otp ${otp}`);
+        console.log(`Date now ${Date.now()}`);
+        console.log(`Password Expires ${user.resetPasswordExpires}`);
+        if (
+            user.resetPasswordOtp !== +otp ||
+            Date.now() > user.resetPasswordExpires
+        ) {
+            return res.status(401).json({ message: "Invalid or expired OTP" });
+        }
+        user.resetPasswordOtp = 1;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+        return res.json({ message: "OTP confirmed successfully" });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ type: e.name, message: e.msg });
+    }
+}
+
 const resetPassword = async (req, res, next) => {
     try {
-        const { email, phone, otp, newPassword } = req.body;
+        const { email, newPassword } = req.body;
 
-        if (!email || !phone || !otp || !newPassword) {
-            throwError({ message: "Email/Phone, OTP, and new password are required", status: 400 });
+        if (!email || !newPassword) {
+            throwError({ message: "Email and new password are required", status: 400 });
         }
 
-        const user = await db.findOne({ $or: [{ email }, { phone }] });
+        const user = await db.findOne({ email });
         if (!user) throwError({ message: "User not found", status: 404 });
 
         if (
-            user.resetPasswordOtp !== otp ||
+            user.resetPasswordOtp !== 1 ||
             !user.resetPasswordExpires ||
             user.resetPasswordExpires.getTime() < Date.now()
         ) {
@@ -331,4 +359,4 @@ const history = async (req, res, next) => {
     }
 }
 
-module.exports = { register, verifyOtp, login, user, forgotPassword, resetPassword, updateUser, history };
+module.exports = { register, verifyOtp, login, user, forgotPassword, resetPassword, updateUser, history, verifyResetOtp };
