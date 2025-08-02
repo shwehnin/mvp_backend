@@ -221,14 +221,10 @@ const verifyResetOtp = async (req, res, next) => {
     try {
         const { email, otp } = req.body;
         const user = await db.findOne({ email });
-        console.log(`User forgot ${user}`);
         if (!user) {
             return res.status(404).json({ message: "User not found!" });
         }
-        console.log(`User otp ${user.resetPasswordOtp}`);
-        console.log(`forgot otp ${otp}`);
-        console.log(`Date now ${Date.now()}`);
-        console.log(`Password Expires ${user.resetPasswordExpires}`);
+        
         if (
             String(user.resetPasswordOtp) !== String(otp) ||
             Date.now() > user.resetPasswordExpires
@@ -238,7 +234,20 @@ const verifyResetOtp = async (req, res, next) => {
         user.resetPasswordOtp = undefined;
         user.resetPasswordExpires = undefined;
         await user.save();
-        return res.json({ message: "OTP confirmed successfully" });
+        const userObj = user.toObject();
+        delete userObj.password;
+
+        return res.status(200).json({
+            success: true,
+            message: 'OTP confirmed successfully',
+            data: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                address: user.address,
+            }
+        });
     } catch (e) {
         console.error(e);
         return res.status(500).json({ type: e.name, message: e.msg });
