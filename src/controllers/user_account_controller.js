@@ -191,11 +191,11 @@ const user = async (req, res, next) => {
 
 const forgotPassword = async (req, res, next) => {
     try {
-        const { email, phone } = req.body;
+        const { email } = req.body;
 
-        if (!email || !phone) throwError({ message: "Email/Phone is required", status: 400 });
+        if (!email) throwError({ message: "Email is required", status: 400 });
 
-        const user = await db.findOne({ $or: [{ email }, { phone }] });
+        const user = await db.findOne({ email });
         if (!user) throwError({ message: "User not found", status: 404 });
 
         const { otp, otpExpires } = generateOTP();
