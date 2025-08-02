@@ -162,31 +162,5 @@ const leave = async (req, res, next) => {
     }
 }
 
-// Get join history for current user
-const joinHistory = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        // Find group buys where user is in the participants list
-        const groupBuys = await db.find({ 'participants.user': userId }).populate('organizer', 'name email').lean();
-        // Filter participant data for this user only
-        const history = groupBuys.map(gb => {
-            const participant = gb.participants.find(p => p.user.toString() === userId);
-            return {
-                _id: gb.id,
-                title: gb.title,
-                product: gb.product,
-                description: gb.description,
-                organizer: gb.organizer,
-                joinedQuantity: participant.quantity,
-                joinedAt: participant.joinedAt || gb.updatedAt,
-                endDate: gb.endDate,
-                status: gb.status
-            }
-        });
-        success(res, { message: "View Order History", data: history });
-    } catch (error) {
-        next(error);
-    }
-}
 
-module.exports = { create, get, details, join, leave, joinHistory }
+module.exports = { create, get, details, join, leave }
