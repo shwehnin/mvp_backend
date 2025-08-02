@@ -232,9 +232,9 @@ const verifyResetOtp = async (req, res, next) => {
         if (
             String(user.resetPasswordOtp) !== String(otp) ||
             Date.now() > user.resetPasswordExpires
-          ) {
+        ) {
             return res.status(401).json({ message: "Invalid or expired OTP" });
-          }
+        }
         user.resetPasswordOtp = undefined;
         user.resetPasswordExpires = undefined;
         await user.save();
@@ -257,9 +257,7 @@ const resetPassword = async (req, res, next) => {
         if (!user) throwError({ message: "User not found", status: 404 });
 
         if (
-            user.resetPasswordOtp !== 1 ||
-            !user.resetPasswordExpires ||
-            user.resetPasswordExpires.getTime() < Date.now()
+            user.resetPasswordExpires < Date.now()
         ) {
             throwError({ message: "Invalid or expired OTP", status: 400 });
         }
