@@ -118,7 +118,6 @@ const verifyOtp = async (req, res, next) => {
         delete userObj.password;
 
         success(res, {
-            status: true,
             message: 'Account verified successfully',
             data: {
                 id: user._id,
