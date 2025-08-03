@@ -21,12 +21,12 @@ const register = async (req, res, next) => {
         // Validate HDB address
         const hdbData = await HDBData.findOne({ town: new RegExp(`^${address.town}$`, 'i') });
         if (!hdbData) {
-            return res.status(400).json({ error: 'Invalid HDB town' });
+            throwError({ error: 'Invalid HDB town' });
         }
 
         const estateData = hdbData.estates.find(e => e.name === address.estate);
         if (!estateData || !estateData.blocks.includes(address.block)) {
-            return res.status(400).json({ error: 'Invalid HDB address' });
+            throwError({ error: 'Invalid HDB address' });
         }
 
         // Check duplicates only if respective fields are provided
@@ -222,14 +222,14 @@ const verifyResetOtp = async (req, res, next) => {
         const { email, otp } = req.body;
         const user = await db.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: "User not found!" });
+            throwError({ message: "User not found!", status: 404 });
         }
         
         if (
             String(user.resetPasswordOtp) !== String(otp) ||
             Date.now() > user.resetPasswordExpires
         ) {
-            return res.status(401).json({ message: "Invalid or expired OTP" });
+            throwError({ message: "Invalid or expired OTP", status: 400 });
         }
         user.resetPasswordOtp = undefined;
         user.resetPasswordExpires = undefined;
@@ -237,8 +237,7 @@ const verifyResetOtp = async (req, res, next) => {
         const userObj = user.toObject();
         delete userObj.password;
 
-        return res.status(200).json({
-            success: true,
+        success(res, {
             message: 'OTP confirmed successfully',
             data: {
                 id: user._id,
@@ -249,8 +248,7 @@ const verifyResetOtp = async (req, res, next) => {
             }
         });
     } catch (e) {
-        console.error(e);
-        return res.status(500).json({ type: e.name, message: e.msg });
+        next(e);
     }
 }
 

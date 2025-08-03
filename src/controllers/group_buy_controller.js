@@ -11,7 +11,7 @@ const create = async (req, res, next) => {
         // Validate that user is organizer only can create
         const user = await dbUser.findById(req.user.id);
         if (!user || user.role !== 'organizer') {
-            return res.status(403).json({ error: 'Only organizers can create group buys' });
+            throwError({ error: 'Only organizers can create group buys' });
         }
 
         const groupBuy = new db({
@@ -37,7 +37,7 @@ const get = async (req, res, next) => {
     try {
         const user = await dbUser.findById(req.user.id);
         console.log("User " + user);
-        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (!user) throwError({ error: 'User not found' });
 
         const { town, estate, block } = user.address || {};
 
