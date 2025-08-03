@@ -10,7 +10,7 @@ const create = async (req, res, next) => {
 
         // Validate that user is organizer only can create
         const user = await dbUser.findById(req.user.id);
-        if (!user || user.role !== 'organizer') {
+        if (!user || user.role !== 'organizer' || user.role !== 'admin') {
             throwError({ error: 'Only organizers can create group buys' });
         }
 
