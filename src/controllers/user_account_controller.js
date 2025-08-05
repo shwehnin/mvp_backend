@@ -223,7 +223,7 @@ const verifyResetOtp = async (req, res, next) => {
         if (!user) {
             throwError({ message: "User not found!", status: 404 });
         }
-        
+
         if (
             String(user.resetPasswordOtp) !== String(otp) ||
             Date.now() > user.resetPasswordExpires
@@ -363,4 +363,64 @@ const history = async (req, res, next) => {
     }
 }
 
-module.exports = { register, verifyOtp, login, user, forgotPassword, resetPassword, updateUser, history, verifyResetOtp };
+// Resend OTP for account verification
+const resendVerificationOtp = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) throwError({ message: "Email is required", status: 400 });
+        const user = await db.find({ email });
+        if (!user) throwError({ message: "User not found", status: 404 });
+        if (user.isVerified) {
+            throwError({ message: "User is verified", status: 400 });
+        }
+
+        // Generate new OTP
+        const { otp, otpExpires } = generateOTP();
+        user.otpCode = otp;
+        user.otpExpires = otpExpires;
+        await user.save();
+
+        // Send OTP email if email is provided
+        if (email) {
+            await emailSender.sendMail(email, "Verify Your Account - Resend OTP", `Your new OTP code is: ${otp}`);
+        }
+
+        success(res, { message: "Verification OTP resent successfully. Please check your email.", })
+    } catch (e) {
+        next(e);
+    }
+}
+
+// Resend OTP for password reset
+const resendResetPasswordOtp = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) throwError({ message: "Email is required", status: 400 });
+
+        const user = await db.find({ email })
+        if (!user) throwError({ message: "User not found", status: 404 });
+
+        // Check if there's an existing reset request
+        if (!user.resetPasswordOtp && !user.resetPasswordExpires) {
+            throwError({ message: "No active password reset request found. Please initiate forgot password first.", status: 400 });
+
+        }
+        // Generate new OTP
+        const { otp, otpExpires } = generateOTP();
+        user.resetPasswordOtp = otp;
+        user.resetPasswordExpires = otpExpires;
+        await user.save();
+        await emailSender.sendMail(
+            email,
+            "Password Reset - Resend OTP",
+            `Your new OTP code to reset your password is: ${otp}`
+        );
+        success(res, {
+            message: "Reset password OTP resent successfully. Please check your email.",
+        });
+    } catch (e) {
+        next(e);
+    }
+}
+
+module.exports = { register, verifyOtp, login, user, forgotPassword, resetPassword, updateUser, history, verifyResetOtp, resendVerificationOtp, resendResetPasswordOtp};
